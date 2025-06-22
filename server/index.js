@@ -50,7 +50,9 @@ async function searchBooks(query) {
     const sources = [
       searchFlibusta,
       searchLitnet,
-      searchKnigopoisk
+      searchKnigopoisk,
+      searchRoyalLib,
+      searchEReading
     ];
 
     const promises = sources.map(source => source(query));
@@ -158,6 +160,75 @@ async function searchKnigopoisk(query) {
         return books;
     } catch (error) {
         console.log('Ошибка при поиске на knigopoisk.org:', error.message);
+        return [];
+    }
+}
+
+async function searchRoyalLib(query) {
+    try {
+        const response = await axios.get(`https://royallib.com/search?q=${encodeURIComponent(query)}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' },
+            timeout: 8000
+        });
+        const $ = cheerio.load(response.data);
+        const books = [];
+        $('table.stripy tr').each((i, element) => {
+            const authorNode = $(element).find('a[href*="/author/"]');
+            const bookNode = $(element).find('a[href*="/book/"]');
+            
+            if (authorNode.length && bookNode.length) {
+                const author = authorNode.text().trim();
+                const title = bookNode.text().trim();
+                const downloadLink = 'https://royallib.com' + bookNode.attr('href');
+                
+                books.push({
+                    title,
+                    author,
+                    description: 'Жанр: ' + $(element).find('td').eq(2).text().trim(),
+                    downloadLink,
+                    source: 'royallib.com'
+                });
+            }
+        });
+        console.log(`RoyalLib found ${books.length} books.`);
+        return books;
+    } catch (error) {
+        console.log('Ошибка при поиске на royallib.com:', error.message);
+        return [];
+    }
+}
+
+async function searchEReading(query) {
+    try {
+        const response = await axios.get(`https://www.e-reading.club/search.php?q=${encodeURIComponent(query)}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' },
+            timeout: 8000
+        });
+        const $ = cheerio.load(response.data);
+        const books = [];
+        $('td > table.book').each((i, element) => {
+            const titleNode = $(element).find('a[href^="book.php?book="]');
+            const authorNode = $(element).find('a[href^="bookbyauthor.php?author="]');
+
+            if (titleNode.length && authorNode.length) {
+                const title = titleNode.text().trim();
+                const author = authorNode.text().trim();
+                const downloadLink = 'https://www.e-reading.club/' + titleNode.attr('href');
+                const description = $(element).find('td[valign="top"]').eq(1).text().trim().split('\n')[0];
+
+                books.push({
+                    title,
+                    author,
+                    description,
+                    downloadLink,
+                    source: 'e-reading.club'
+                });
+            }
+        });
+        console.log(`E-reading.club found ${books.length} books.`);
+        return books;
+    } catch (error) {
+        console.log('Ошибка при поиске на e-reading.club:', error.message);
         return [];
     }
 }
