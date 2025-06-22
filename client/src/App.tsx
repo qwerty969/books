@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { Search, BookOpen, Download, User, Info } from 'lucide-react';
+import { Search, BookOpen, Download, User, Info, Globe } from 'lucide-react';
 import axios from 'axios';
+
+interface BookSource {
+  name: string;
+  link: string;
+}
 
 interface Book {
   title: string;
   author: string;
   description: string;
-  downloadLink: string;
-  source: string;
+  sources: BookSource[];
 }
 
 function App() {
@@ -134,8 +138,9 @@ function App() {
                         <User className="h-4 w-4 mr-1" />
                         <span>{book.author}</span>
                       </div>
-                      <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full inline-block">
-                        {book.source}
+                      <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full inline-block flex items-center space-x-1">
+                        <Globe className="h-3 w-3" />
+                        <span>{book.sources.length} источника</span>
                       </div>
                     </div>
                   </div>
@@ -146,13 +151,23 @@ function App() {
                     </p>
                   )}
                   
-                  <button
-                    onClick={() => downloadBook(book)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Скачать</span>
-                  </button>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700">Скачать из:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {book.sources.map((source, s_index) => (
+                        <a
+                          key={s_index}
+                          href={source.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-green-100 text-green-800 hover:bg-green-200 text-xs font-semibold px-3 py-1 rounded-full transition-colors duration-200 flex items-center space-x-1"
+                        >
+                          <Download className="h-3 w-3" />
+                          <span>{source.name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

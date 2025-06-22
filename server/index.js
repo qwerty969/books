@@ -59,27 +59,61 @@ async function searchBooks(query) {
     const promises = sources.map(source => source(query));
     const results = await Promise.allSettled(promises);
 
-    const books = results
+    const flatBooks = results
       .filter(result => result.status === 'fulfilled' && Array.isArray(result.value))
       .flatMap(result => result.value);
 
     // Если после всех поисков ничего не найдено, возвращаем демо-данные
-    if (books.length === 0) {
+    if (flatBooks.length === 0) {
       console.log('No books found from any source, returning demo data.');
       return getDemoBooks();
     }
+    
+    const groupedBooks = groupBooks(flatBooks);
 
     // Сохраняем в кэш (только для локальной разработки)
     if (!isVercel) {
       db.run("INSERT INTO books_cache (query, results) VALUES (?, ?)",
-        [query, JSON.stringify(books)]);
+        [query, JSON.stringify(groupedBooks)]);
     }
 
-    return books;
+    return groupedBooks;
   } catch (error) {
     console.error('General error in searchBooks:', error);
     return [];
   }
+}
+
+function groupBooks(books) {
+    const grouped = new Map();
+
+    books.forEach(book => {
+        // Ключ для группировки: "автор|название" в нижнем регистре
+        const key = `${book.author.toLowerCase().trim()}|${book.title.toLowerCase().trim()}`;
+
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                title: book.title,
+                author: book.author,
+                // По умолчанию берем первое описание
+                description: book.description,
+                sources: []
+            });
+        }
+
+        const entry = grouped.get(key);
+        entry.sources.push({
+            name: book.source,
+            link: book.downloadLink
+        });
+
+        // Выбираем самое длинное и информативное описание для группы
+        if (book.description && book.description.length > entry.description.length && !entry.description.startsWith('Жанр:')) {
+            entry.description = book.description;
+        }
+    });
+
+    return Array.from(grouped.values());
 }
 
 // --- Функции для парсинга каждого сайта ---
