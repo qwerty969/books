@@ -13,7 +13,8 @@
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "sqlite3": "^5.1.6",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "iconv": "^3.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

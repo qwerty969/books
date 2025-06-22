@@ -52,7 +52,8 @@ async function searchBooks(query) {
       searchLitnet,
       searchKnigopoisk,
       searchRoyalLib,
-      searchEReading
+      searchEReading,
+      searchLibRu
     ];
 
     const promises = sources.map(source => source(query));
@@ -229,6 +230,51 @@ async function searchEReading(query) {
         return books;
     } catch (error) {
         console.log('Ошибка при поиске на e-reading.club:', error.message);
+        return [];
+    }
+}
+
+async function searchLibRu(query) {
+    try {
+        // lib.ru использует кодировку KOI8-R, поэтому нам нужен специальный подход.
+        const response = await axios.get(`http://lib.ru/cgi-bin/search?q=${encodeURIComponent(query)}`, {
+            responseType: 'arraybuffer', // Получаем как бинарные данные
+            timeout: 10000
+        });
+
+        // Декодируем из KOI8-R в UTF-8
+        const Iconv = require('iconv').Iconv;
+        const converter = new Iconv('KOI8-R', 'UTF-8');
+        const body = converter.convert(response.data).toString();
+        
+        const $ = cheerio.load(body);
+        const books = [];
+
+        $('li').each((i, element) => {
+            const linkNode = $(element).find('a');
+            const authorNode = $(element).find('b');
+
+            if (linkNode.length && authorNode.length) {
+                const author = authorNode.text().trim().replace(':', '');
+                const title = linkNode.text().trim();
+                const downloadLink = 'http://lib.ru' + linkNode.attr('href');
+                
+                // Пропускаем ссылки на сам поисковик
+                if (!downloadLink.includes('cgi-bin/search')) {
+                     books.push({
+                        title,
+                        author,
+                        description: `Найдено в библиотеке Мошкова (lib.ru)`,
+                        downloadLink,
+                        source: 'lib.ru'
+                    });
+                }
+            }
+        });
+        console.log(`Lib.ru found ${books.length} books.`);
+        return books;
+    } catch (error) {
+        console.log('Ошибка при поиске на lib.ru:', error.message);
         return [];
     }
 }
