@@ -4,6 +4,7 @@
   "description": "Приложение для поиска и скачивания книг на русском языке",
   "main": "server/index.js",
   "scripts": {
+    "preinstall": "npm install --prefix client && npm install --prefix server",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm start",
