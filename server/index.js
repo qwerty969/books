@@ -2,43 +2,48 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isVercel = process.env.VERCEL === '1';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Инициализация базы данных
-const db = new sqlite3.Database('./books.db');
-
-// Создание таблицы для кэширования
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS books_cache (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    query TEXT,
-    results TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-});
+// Инициализация базы данных (только для локальной разработки)
+let db;
+if (!isVercel) {
+  const sqlite3 = require('sqlite3').verbose();
+  db = new sqlite3.Database('./books.db');
+  // Создание таблицы для кэширования
+  db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS books_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      query TEXT,
+      results TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+  });
+}
 
 // Функция для поиска книг
 async function searchBooks(query) {
   try {
-    // Проверяем кэш
-    const cached = await new Promise((resolve, reject) => {
-      db.get("SELECT results FROM books_cache WHERE query = ? AND created_at > datetime('now', '-1 hour')", 
-        [query], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-    });
+    // Проверяем кэш (только для локальной разработки)
+    if (!isVercel) {
+      const cached = await new Promise((resolve, reject) => {
+        db.get("SELECT results FROM books_cache WHERE query = ? AND created_at > datetime('now', '-1 hour')",
+          [query], (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          });
+      });
 
-    if (cached) {
-      return JSON.parse(cached.results);
+      if (cached) {
+        return JSON.parse(cached.results);
+      }
     }
 
     // Поиск на различных сайтах
@@ -236,9 +241,11 @@ async function searchBooks(query) {
       );
     }
 
-    // Сохраняем в кэш
-    db.run("INSERT INTO books_cache (query, results) VALUES (?, ?)", 
-      [query, JSON.stringify(results)]);
+    // Сохраняем в кэш (только для локальной разработки)
+    if (!isVercel) {
+      db.run("INSERT INTO books_cache (query, results) VALUES (?, ?)",
+        [query, JSON.stringify(results)]);
+    }
 
     return results;
   } catch (error) {
