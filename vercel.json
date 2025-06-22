@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "comment": "This file configures the Vercel deployment.",
   "builds": [
     {
       "src": "server/index.js",
